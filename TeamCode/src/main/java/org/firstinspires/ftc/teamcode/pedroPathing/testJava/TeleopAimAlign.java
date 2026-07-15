@@ -6,163 +6,115 @@ import com.qualcomm.robotcore.eventloop.opmode.TeleOp;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.Servo;
+import com.qualcomm.robotcore.hardware.DcMotorEx;
 
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import org.firstinspires.ftc.teamcode.pedroPathing.subsystems.IntakeSensor;
 
-
 @TeleOp(name = "Teleop Aim Align")
 public class TeleopAimAlign extends LinearOpMode {
 
-
     private Follower follower;
-
     private double headingOffset = 0;
     private boolean lastA = false;
     private final Pose leftGoal = new Pose(40,40);
     private final Pose rightGoal = new Pose(40,-40);
     private boolean aimAlign = false;
-    private Pose currentTarget = null;
+
+    // Agora o target começa valendo algo (leftGoal) para não dar erro
+    private Pose currentTarget = leftGoal;
+
+    private boolean autoAngulator = false;
 
     private double kP = 1.4;
-
     private double headingDeadzone = Math.toRadians(1.5);
 
-    private DcMotor intake, rightShooter, leftShooter, indexer;
-
+    private DcMotor intake, indexer;
+    private DcMotorEx leftShooter, rightShooter;
     private Servo angulator;
 
     private final double servoHigh = 0.35;
     private final double servoLow = 1.00;
-
-    private final double minDistance = 0;
-    private final double maxDistance = 95;
+    private final double minDistance = 40;
+    private final double maxDistance = 0;
+    public final double targetVelocity = 6000;
+    public final double velocityTolerance = 100;
 
     private IntakeSensor intakeSensor;
-
-
 
     @Override
     public void runOpMode() {
         follower = Constants.createFollower(hardwareMap);
         follower.setStartingPose(new Pose(0,0,0));
-
         initSubsystems();
-        angulator.setPosition(.45);
+        angulator.setPosition(.3);
 
         telemetry.addLine("Robot Ready");
         telemetry.update();
 
         waitForStart();
 
-        if(isStopRequested())
-            return;
+        if(isStopRequested()) return;
 
         follower.startTeleopDrive();
 
         while(opModeIsActive()) {
             follower.update();
-
             Pose robotPose = follower.getPose();
 
-            if(currentTarget != null){
+            // Lógica de seleção de alvo
+            if (gamepad1.x) { currentTarget = leftGoal; aimAlign = true; }
+            if (gamepad1.b) { currentTarget = rightGoal; aimAlign = true; }
 
-                double distance = robotPose.distanceFrom(currentTarget);
+            // Lógica do Angulator Automático
+            if (gamepad1.dpad_right) autoAngulator = true;
+            if (gamepad1.dpad_up) {
+                autoAngulator = false;
+                angulator.setPosition(0.1);
+            }
 
-                double t = (distance - minDistance) / (maxDistance - minDistance);
-                t = Math.max(0, Math.min(1, t));
+            // Usando a pose atual do robô e as coordenadas do alvo atual
+            if (autoAngulator) {
+                double distance = Math.hypot(currentTarget.getX() - robotPose.getX(), currentTarget.getY() - robotPose.getY());
+                double t = Math.max(0, Math.min(1, (distance - minDistance) / (maxDistance - minDistance)));
+                angulator.setPosition(servoHigh + t * (servoLow - servoHigh));
 
-                double servoPosition =
-                        servoHigh + t * (servoLow - servoHigh);
-
-                angulator.setPosition(servoPosition);
-
+                telemetry.addData("Auto-Angulator", "ON");
+                telemetry.addData("Target", currentTarget == leftGoal ? "LEFT" : "RIGHT");
                 telemetry.addData("Distance", distance);
-                telemetry.addData("Servo", servoPosition);
+            } else {
+                telemetry.addData("Auto-Angulator", "OFF");
             }
 
-            if (gamepad1.a && !lastA) {
-                headingOffset = robotPose.getHeading();
-            }
-
+            // Controles de Drive
+            if (gamepad1.a && !lastA) headingOffset = robotPose.getHeading();
             lastA = gamepad1.a;
 
             double fieldHeading = robotPose.getHeading();
+            double driverHeading = Math.atan2(Math.sin(fieldHeading - headingOffset), Math.cos(fieldHeading - headingOffset));
 
-            double driverHeading = fieldHeading - headingOffset;
-            driverHeading = Math.atan2(
-                    Math.sin(driverHeading),
-                    Math.cos(driverHeading)
-            );
-
-            if (gamepad1.x) {
-                currentTarget = leftGoal;
-                aimAlign = true;
-            }
-
-            if (gamepad1.b) {
-                currentTarget = rightGoal;
-                aimAlign = true;
-            }
-
-            if (Math.abs(gamepad1.right_stick_x) > 0.1) {
-                aimAlign = false;
-            }
+            if (Math.abs(gamepad1.right_stick_x) > 0.1) aimAlign = false;
 
             double forward = -gamepad1.left_stick_y;
             double strafe = -gamepad1.left_stick_x;
-
             double turn;
 
-            if (aimAlign && currentTarget != null) {
-
-                double targetHeading = Math.atan2(
-                        currentTarget.getY() - robotPose.getY(),
-                        currentTarget.getX() - robotPose.getX()
-                );
-
-                double error = Math.atan2(
-                        Math.sin(targetHeading - fieldHeading),
-                        Math.cos(targetHeading - fieldHeading)
-                );
-
-                if (Math.abs(error) < headingDeadzone) {
-                    turn = 0;
-                } else {
-                    turn = limit(error * kP);
-                }
-
-                telemetry.addData("Goal", currentTarget == leftGoal ? "LEFT" : "RIGHT");
-                telemetry.addData("Error", Math.toDegrees(error));
-
+            if (aimAlign) {
+                double targetHeading = Math.atan2(currentTarget.getY() - robotPose.getY(), currentTarget.getX() - robotPose.getX());
+                double error = Math.atan2(Math.sin(targetHeading - fieldHeading), Math.cos(targetHeading - fieldHeading));
+                turn = (Math.abs(error) < headingDeadzone) ? 0 : limit(error * kP);
             } else {
                 turn = -gamepad1.right_stick_x;
             }
 
-            double tempForward =
-                    forward * Math.cos(driverHeading) -
-                            strafe * Math.sin(driverHeading);
-
-            double tempStrafe =
-                    forward * Math.sin(driverHeading) +
-                            strafe * Math.cos(driverHeading);
-
-            forward = tempForward;
-            strafe = tempStrafe;
-
             follower.setTeleOpDrive(
-                    forward,
-                    strafe,
-                    turn,
-                    false
+                    forward * Math.cos(driverHeading) - strafe * Math.sin(driverHeading),
+                    forward * Math.sin(driverHeading) + strafe * Math.cos(driverHeading),
+                    turn, false
             );
 
             subsystems();
-
-            telemetry.addData("X", robotPose.getX());
-            telemetry.addData("Y", robotPose.getY());
-//            telemetry.addData("Heading", Math.toDegrees(robotHeading));
-            telemetry.addData("Aim", aimAlign);
+            telemetry.addData("Shooter Ready", Math.abs(leftShooter.getVelocity() - targetVelocity) < velocityTolerance);
             telemetry.update();
         }
     }
@@ -170,67 +122,54 @@ public class TeleopAimAlign extends LinearOpMode {
     private void initSubsystems() {
         intake = hardwareMap.get(DcMotor.class,"intake");
         indexer = hardwareMap.get(DcMotor.class, "indexer");
-        leftShooter = hardwareMap.get(DcMotor.class, "leftShooter");
-        rightShooter = hardwareMap.get(DcMotor.class, "rightShooter");
+        leftShooter = hardwareMap.get(DcMotorEx.class, "leftShooter");
+        rightShooter = hardwareMap.get(DcMotorEx.class, "rightShooter");
         intakeSensor = new IntakeSensor(hardwareMap);
-
+        leftShooter.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        rightShooter.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         angulator = hardwareMap.get(Servo.class, "angulator");
         angulator.scaleRange(0, 1.0);
     }
+
     private void subsystems() {
         intakeSensor.periodic();
 
-        if (gamepad1.y){
-            leftShooter.setPower(-1);
-            rightShooter.setPower(1);
-            if(gamepad1.right_bumper){
+        // 1. Lógica de Disparo (Prioridade)
+        if (gamepad1.y) {
+            leftShooter.setVelocity(targetVelocity);
+            rightShooter.setVelocity(targetVelocity);
+
+            boolean isShooterReady = Math.abs(leftShooter.getVelocity() - targetVelocity) < velocityTolerance;
+
+            if (isShooterReady) {
                 intake.setPower(1);
-                indexer.setPower(-1);
-            }
-        } else {
-            intake.setPower(0);
-            indexer.setPower(0);
-            leftShooter.setPower(0);
-            rightShooter.setPower(0);
-        }
-
-        if(gamepad1.dpad_down){
-            angulator.setPosition(1);
-        }
-
-        if(gamepad1.dpad_right){
-            angulator.setPosition(.5);
-        }
-
-        if(gamepad1.dpad_up){
-            angulator.setPosition(0);
-        }
-
-        if (gamepad1.right_bumper) {
-            intake.setPower(1.0);
-
-            if (intakeSensor.hasArtifact() && !gamepad1.y) {
-                indexer.setPower(0);
-            } else if (!intakeSensor.hasArtifact() && gamepad1.y){
-                indexer.setPower(-1);
+                indexer.setPower(-0.7);
             } else {
-                indexer.setPower(-.7);
+                // Shooter ligado, mas não pronto: para o indexer, mas mantém o intake
+                // OU define ambos como 0 se preferir parar tudo
+                indexer.setPower(0);
             }
-        } else if (gamepad1.left_bumper) {
-            intake.setPower(-1);
-            indexer.setPower(1);
-        } else {
-            intake.setPower(0);
-            indexer.setPower(0);
+        }
+        // 2. Lógica de Intake Manual (Só acontece se NÃO estiver apertando Y)
+        else {
+            leftShooter.setVelocity(0);
+            rightShooter.setVelocity(0);
+
+            if (gamepad1.right_bumper) {
+                intake.setPower(1.0);
+                // Se tiver peça, para o indexer, se não, puxa
+                indexer.setPower(intakeSensor.hasArtifact() ? 0 : -0.7);
+            } else if (gamepad1.left_bumper) {
+                intake.setPower(-1.0);
+                indexer.setPower(1.0);
+            } else {
+                intake.setPower(0);
+                indexer.setPower(0);
+            }
         }
     }
 
     private double limit(double value) {
-        if(value > 1)
-            return 1;
-        if(value < -1)
-            return -1;
-
-        return value;
+        return Math.max(-1, Math.min(1, value));
     }
 }

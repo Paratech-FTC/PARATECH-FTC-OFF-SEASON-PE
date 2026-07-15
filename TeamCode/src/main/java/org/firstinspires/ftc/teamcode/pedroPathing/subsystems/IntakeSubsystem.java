@@ -4,78 +4,18 @@ import com.qualcomm.robotcore.hardware.DcMotor;
 import com.qualcomm.robotcore.hardware.HardwareMap;
 
 public class IntakeSubsystem {
-
-    private final DcMotor intake;
-    private final DcMotor indexer;
-
-    private final IntakeSensor intakeSensor;
+    private DcMotor intake, indexer;
+    private IntakeSensor sensor;
 
     public IntakeSubsystem(HardwareMap hardwareMap) {
-
         intake = hardwareMap.get(DcMotor.class, "intake");
         indexer = hardwareMap.get(DcMotor.class, "indexer");
-
-        intakeSensor = new IntakeSensor(hardwareMap);
-
+        sensor = new IntakeSensor(hardwareMap);
     }
 
-    public void initialize() {
+    public void update() { sensor.periodic(); }
 
-        stop();
-
-    }
-
-    public void periodic() {
-
-        intakeSensor.periodic();
-
-    }
-
-    public void intake() {
-
-        if (intakeSensor.hasArtifact()) {
-
-            stop();
-
-        } else {
-
-            intake.setPower(1.0);
-            indexer.setPower(-0.4);
-
-        }
-
-    }
-
-    public void reverse() {
-
-        intake.setPower(-1.0);
-        indexer.setPower(0.4);
-
-    }
-
-    public void stop() {
-
-        intake.setPower(0);
-        indexer.setPower(0);
-
-    }
-
-    public boolean hasArtifact() {
-
-        return intakeSensor.hasArtifact();
-
-    }
-
-    public double getDistance1() {
-
-        return intakeSensor.getDistance1();
-
-    }
-
-    public double getDistance2() {
-
-        return intakeSensor.getDistance2();
-
-    }
-
+    public void runIntake(double power) { intake.setPower(power); }
+    public void runIndexer(double power) { indexer.setPower(power); }
+    public boolean hasPiece() { return sensor.hasArtifact(); }
 }
