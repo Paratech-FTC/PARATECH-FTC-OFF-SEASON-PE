@@ -30,14 +30,14 @@ public class autozinho extends OpMode {
     private IntakeSensor intakeSensor;
 
     // Constantes do Shooter e Alvos
-    private final double TARGET_VELOCITY = 5700;
+    private final double TARGET_VELOCITY = 2200;
     private final double VELOCITY_TOLERANCE = 100;
 
     // Definição das Poses (Posições do Campo)
-    private final Pose startPose  = new Pose(0, 0, Math.toRadians(0));
-    private final Pose shootPose  = new Pose(20, 0, Math.toRadians(55)); // 45° virado para o goal esquerdo
+    private final Pose startPose  = new Pose(39, 30, Math.toRadians(50));
+    private final Pose shootPose  = new Pose(16, 2, Math.toRadians(55)); // 45° virado para o goal esquerdo
     private final Pose intakePose = new Pose(0, 0, Math.toRadians(90));  // Posição para iniciar a coleta virado para esquerda
-    private final Pose intakeEnd  = new Pose(0, 30, Math.toRadians(90)); // Avança 12 polegadas no eixo Y positivo (Para Frente do Robô)
+    private final Pose intakeEnd  = new Pose(16, 35, Math.toRadians(90)); // Avança 12 polegadas no eixo Y positivo (Para Frente do Robô)
 
     // Caminhos (Paths)
     private Path goShoot1, goToIntake, goIntakeForward, goShoot2;
@@ -183,7 +183,6 @@ public class autozinho extends OpMode {
 
         leftShooter.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         rightShooter.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-
-        angulator.setPosition(0.35); // Posição padrão segura
+        angulator.setPosition(0.8);
     }
 }

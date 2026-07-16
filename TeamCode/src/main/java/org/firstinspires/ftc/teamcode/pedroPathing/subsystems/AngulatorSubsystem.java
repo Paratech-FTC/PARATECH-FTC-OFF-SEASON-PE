@@ -12,8 +12,8 @@ public class AngulatorSubsystem {
 
     public AngulatorSubsystem(HardwareMap hardwareMap) {
         angulator = hardwareMap.get(Servo.class, "angulator");
-        angulator.scaleRange(0, 1.0);
-        angulator.setPosition(0.45);
+        angulator.scaleRange(0.2, 1.0);
+        angulator.setPosition(0.1);
     }
 
     public void setPosition(double pos) {
