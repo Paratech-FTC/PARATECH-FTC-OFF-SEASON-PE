@@ -37,7 +37,7 @@ public class TeleopAimAlign extends LinearOpMode {
     private final double servoLow = 1.00;
     private final double minDistance = 40;
     private final double maxDistance = 0;
-    public final double targetVelocity = 6000;
+    public final double targetVelocity = 5700;
     public final double velocityTolerance = 100;
 
     private IntakeSensor intakeSensor;
@@ -107,6 +107,13 @@ public class TeleopAimAlign extends LinearOpMode {
                 turn = -gamepad1.right_stick_x;
             }
 
+            //follower.setTeleOpDrive(
+                   // forward, // forward direto do joystick
+                  //  strafe,  // strafe direto do joystick
+                //    turn,
+              //      true     // TRUE ativa o Field Oriented
+            //);
+
             follower.setTeleOpDrive(
                     forward * Math.cos(driverHeading) - strafe * Math.sin(driverHeading),
                     forward * Math.sin(driverHeading) + strafe * Math.cos(driverHeading),
@@ -114,6 +121,10 @@ public class TeleopAimAlign extends LinearOpMode {
             );
 
             subsystems();
+
+            double currentVel = leftShooter.getVelocity();
+            telemetry.addData("Shooter Vel Real", currentVel);
+            telemetry.addData("Shooter Ready", Math.abs(currentVel - targetVelocity) < velocityTolerance);
             telemetry.addData("Shooter Ready", Math.abs(leftShooter.getVelocity() - targetVelocity) < velocityTolerance);
             telemetry.update();
         }
