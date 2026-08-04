@@ -35,20 +35,18 @@ public class autozinho extends OpMode {
 
     // Definição das Poses (Posições do Campo)
     private final Pose startPose  = new Pose(39, 30, Math.toRadians(50));
-    private final Pose shootPose  = new Pose(16, 2, Math.toRadians(55)); // 45° virado para o goal esquerdo
-    private final Pose intakePose = new Pose(0, 0, Math.toRadians(90));  // Posição para iniciar a coleta virado para esquerda
-    private final Pose intakeEnd  = new Pose(16, 35, Math.toRadians(90)); // Avança 12 polegadas no eixo Y positivo (Para Frente do Robô)
+    private final Pose shootPose  = new Pose(16, 2, Math.toRadians(55));
+    private final Pose intakePose = new Pose(0, 0, Math.toRadians(90));
+    private final Pose intakeEnd  = new Pose(16, 35, Math.toRadians(90));
 
     // Caminhos (Paths)
     private Path goShoot1, goToIntake, goIntakeForward, goShoot2;
 
     @Override
     public void init() {
-        // Inicializa seguidor e hardware
         follower = Constants.createFollower(hardwareMap);
         initHardware();
 
-        // Configura posição inicial e constrói trajetórias
         follower.setStartingPose(startPose);
         buildPaths();
 
@@ -58,93 +56,124 @@ public class autozinho extends OpMode {
 
     @Override
     public void loop() {
-        // Atualiza os dados do Pedro Pathing e do Sensor de Cor a cada ciclo
         follower.update();
         intakeSensor.periodic();
 
-        // Executa a Máquina de Estados Principal
         autonomousPathUpdate();
 
-        // Telemetria Limpa para Diagnóstico
-        telemetry.addData("estado Atual", pathState);
-        telemetry.addData("tem peça?", intakeSensor.hasArtifact() ? "SIM" : "NÃO");
-        telemetry.addData("rpm do shooter", leftShooter.getVelocity());
+        telemetry.addData("Estado Atual", pathState);
+        telemetry.addData("Tem peça?", intakeSensor.hasArtifact() ? "SIM" : "NÃO");
+        telemetry.addData("RPM do Shooter", leftShooter.getVelocity());
         telemetry.update();
     }
 
     private void autonomousPathUpdate() {
         switch (pathState) {
 
-            case 0: // Passo 1: Anda 20 polegadas com spline apontando para o goal esquerdo (45°)
+            case 0: // Dispara o primeiro trajeto para oAlvo
                 follower.followPath(goShoot1);
                 pathState = 1;
                 break;
 
-            case 1: // Aguarda chegar na posição de tiro
+            case 1: // Aguarda chegar na posição de tiro. DICA: Já ligamos o shooter um pouco antes se quiser, ou aqui.
+                // Se quiser ligar o shooter ANTES de chegar, basta colocar leftShooter.setVelocity(TARGET_VELOCITY) aqui.
                 if (!follower.isBusy()) {
                     actionTimer.resetTimer();
                     pathState = 2;
                 }
                 break;
 
-            case 2: // Passo 2: Ativa o shooter por 3 segundos (respeitando o RPM pronto)
-                runShooterSequence();
-                if (actionTimer.getElapsedTimeSeconds() >= 3.0) {
-                    stopAll();
-                    follower.followPath(goToIntake); // Vai para a posição de alinhamento do Intake
+            case 2: // Ativa o shooter, espera o RPM e dispara por 3 segundos
+                runShooterSequence(); // Mantém o shooter girando
+
+                // Verifica se atingiu a velocidade e o timer de 3s estourou
+                if (isShooterAtSpeed() && actionTimer.getElapsedTimeSeconds() >= 3.0) {
+                    stopShooterAndMechanisms();
+                    follower.followPath(goToIntake); // Vai para o intake
                     pathState = 3;
                 }
                 break;
 
-            case 3: // Aguarda chegar na pose (0, 0, 90°)
+            case 3: // Vai para a pose de alinhamento do intake
                 if (!follower.isBusy()) {
-                    // Passo 3: Inicia o trajeto para frente coletando a peça
                     follower.followPath(goIntakeForward);
                     pathState = 4;
                 }
                 break;
 
-            case 4: // Passo 4: Executa o movimento de Intake Inteligente (baseado no sensor de cor)
+            case 4: // Executa a coleta com sensor
                 runIntakeWithSensor();
 
-                // Se o trajeto terminar ou o sensor detectar que a peça já entrou, finaliza a coleta
                 if (!follower.isBusy() || intakeSensor.hasArtifact()) {
-                    stopAll();
-                    follower.followPath(goShoot2); // Volta para a posição de tiro
+                    stopIntake(); // Para o intake para guardar a peça
+
+                    // AQUI ESTÁ O TRUQUE: Já mandamos o shooter ligar ENQUANTO o robô faz o caminho de volta (goShoot2)
+                    leftShooter.setVelocity(TARGET_VELOCITY);
+                    rightShooter.setVelocity(TARGET_VELOCITY);
+
+                    follower.followPath(goShoot2); // Retorna para a posição de tiro
                     pathState = 5;
                 }
                 break;
 
-            case 5: // Aguarda retornar à posição de disparo
+            case 5: // Aguarda retornar à posição de disparo (com o shooter já aquecendo no caminho!)
+                // Mantém o shooter girando no talo enquanto viaja de volta
+                leftShooter.setVelocity(TARGET_VELOCITY);
+                rightShooter.setVelocity(TARGET_VELOCITY);
+
                 if (!follower.isBusy()) {
+                    actionTimer.resetTimer(); // Reseta o timer para contar os 3 segundos de tiro
                     pathState = 6;
                 }
                 break;
 
-            case 6: // Passo 5: Ativa o shooter novamente com a nova peça coletada
-                runShooterSequence();
+            case 6: // Segundo Disparo
+                runShooterSequence(); // Cuida do RPM e joga a peça com o indexer
+
+                if (isShooterAtSpeed() && actionTimer.getElapsedTimeSeconds() >= 3.0) {
+                    stopAll();
+                    // SE VOCÊ FOR ADICIONAR MAIS CICLOS, BASTA MUDAR O ESTADO AQUI:
+                    // pathState = 7; (e criar os próximos casos para o próximo intake e tiro)
+                }
                 break;
         }
     }
 
-    // --- MÉTODOS DOS SUBSISTEMAS ---
+    // --- MÉTODOS AUXILIARES E DOS SUBSISTEMAS ---
+
+    // Retorna verdadeiro se o shooter estiver na velocidade correta
+    private boolean isShooterAtSpeed() {
+        return Math.abs(leftShooter.getVelocity() - TARGET_VELOCITY) < VELOCITY_TOLERANCE;
+    }
+
+    // Liga o motor do shooter e, se estiver no RPM certo, ativa o indexer/intake para atirar
     private void runShooterSequence() {
         leftShooter.setVelocity(TARGET_VELOCITY);
         rightShooter.setVelocity(TARGET_VELOCITY);
 
-        boolean isShooterReady = Math.abs(leftShooter.getVelocity() - TARGET_VELOCITY) < VELOCITY_TOLERANCE;
-
-        if (isShooterReady) {
+        if (isShooterAtSpeed()) {
             intake.setPower(1.0);
-            indexer.setPower(-0.7); // Puxa para dentro da câmara de disparo
+            indexer.setPower(-0.7);
         } else {
-            indexer.setPower(0);    // Segura a peça até atingir a velocidade
+            indexer.setPower(0);    // Aguarda o motor estabilizar antes de empurrar a peça
         }
     }
 
     private void runIntakeWithSensor() {
         intake.setPower(1.0);
         indexer.setPower(intakeSensor.hasArtifact() ? 0 : -0.7);
+    }
+
+    private void stopShooterAndMechanisms() {
+        intake.setPower(0);
+        indexer.setPower(0);
+        leftShooter.setVelocity(0);
+        rightShooter.setVelocity(0);
+    }
+
+    private void stopIntake() {
+        intake.setPower(0);
+        indexer.setPower(0);
     }
 
     private void stopAll() {
@@ -155,20 +184,15 @@ public class autozinho extends OpMode {
     }
 
     private void buildPaths() {
-        // Trajeto 1: De (0,0,0) até a Posição de Disparo (20,0) interpolando para 45° (Goal)
         goShoot1 = new Path(new BezierLine(startPose, shootPose));
         goShoot1.setLinearHeadingInterpolation(startPose.getHeading(), shootPose.getHeading());
 
-        // Trajeto 2: Sai do disparo e vai se alinhar em (0,0) olhando para a esquerda (90°)
         goToIntake = new Path(new BezierCurve(shootPose, new Pose(10, 0), intakePose));
         goToIntake.setLinearHeadingInterpolation(shootPose.getHeading(), intakePose.getHeading());
 
-        // Trajeto 3: Como o robô está em 90° (olhando para a esquerda do campo), andar "para frente" significa
-        // subir no eixo Y positivo. O robô vai de (0,0) para (0,12) mantendo fixo o heading em 90°.
         goIntakeForward = new Path(new BezierLine(intakePose, intakeEnd));
         goIntakeForward.setConstantHeadingInterpolation(intakePose.getHeading());
 
-        // Trajeto 4: Retorna da posição final da coleta direto para o ponto de disparo reajustando o ângulo para 45°
         goShoot2 = new Path(new BezierCurve(intakeEnd, new Pose(10, 6), shootPose));
         goShoot2.setLinearHeadingInterpolation(intakeEnd.getHeading(), shootPose.getHeading());
     }
