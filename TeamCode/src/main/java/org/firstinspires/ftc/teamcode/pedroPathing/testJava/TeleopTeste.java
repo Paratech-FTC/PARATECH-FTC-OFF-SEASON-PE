@@ -115,7 +115,7 @@ public class TeleopTeste extends LinearOpMode {
             }
 
             if(gamepad1.dpad_up){
-                angulator.setPosition(.35);
+                angulator.setPosition(.4);
             }
 
             if (gamepad1.right_bumper) {

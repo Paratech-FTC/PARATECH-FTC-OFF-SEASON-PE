@@ -19,7 +19,7 @@ public class Constants {
             .forwardZeroPowerAcceleration(-41.42000032537576)
             .lateralZeroPowerAcceleration(-57.28459260157522)
             .translationalPIDFCoefficients(new PIDFCoefficients(0.6, 0, 0.04, 0.015))
-            .headingPIDFCoefficients(new PIDFCoefficients(4.6, 0, 0.01, 0.08))
+            .headingPIDFCoefficients(new PIDFCoefficients(2.6, 0, 0.01, 0.08))
             .centripetalScaling(0.0005);
 
     public static MecanumConstants driveConstants = new MecanumConstants()

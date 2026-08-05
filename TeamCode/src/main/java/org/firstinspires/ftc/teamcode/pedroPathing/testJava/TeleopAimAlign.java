@@ -39,12 +39,12 @@ public class TeleopAimAlign extends LinearOpMode {
     private DistanceSensor distRight;
 
     // Configurações do servo
-    private final double servoPosMin = 0.35;
-    private final double servoPosMax = .55;
+    private final double servoPosMin = 0.65;
+    private final double servoPosMax = .45;
     private final double distStart = 100;
-    private final double distEnd = 0;
+    private final double distEnd = 10;
 
-    public final double targetVelocity = 2400;
+    public final double targetVelocity = 2200;
     public final double velocityTolerance = 100;
 
     // Valores PWM do RGB (ajuste se necessário conforme manual da goBILDA)
@@ -75,7 +75,7 @@ public class TeleopAimAlign extends LinearOpMode {
             if (gamepad1.x) { currentTarget = leftGoal; aimAlign = true; }
             if (gamepad1.b) { currentTarget = rightGoal; aimAlign = true; }
             if (gamepad1.dpad_right) autoAngulator = true;
-            if (gamepad1.dpad_up) { autoAngulator = false; angulator.setPosition(0.1); }
+            if (gamepad1.dpad_up) { autoAngulator = false; angulator.setPosition(0.45); }
 
             // Lógica do Angulador
             if (autoAngulator) {
