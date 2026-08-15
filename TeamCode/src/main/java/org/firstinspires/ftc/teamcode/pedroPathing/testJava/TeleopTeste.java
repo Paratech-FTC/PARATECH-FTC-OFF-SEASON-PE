@@ -52,8 +52,6 @@ public class TeleopTeste extends LinearOpMode {
         telemetry.addLine("Robot OK");
         telemetry.update();
 
-        angulator.setPosition(.45);
-
         waitForStart();
 
         while (opModeIsActive()) {
@@ -92,18 +90,18 @@ public class TeleopTeste extends LinearOpMode {
             frontRight.setPower(frontRightPower);
             backRight.setPower(backRightPower);
 
+
             if (gamepad1.x){
-                leftShooter.setPower(-1);
+                intake.setPower(1);
+            }
+
+            if (gamepad1.y){
+                leftShooter.setPower(1);
                 rightShooter.setPower(1);
-                if(gamepad1.right_bumper){
-                    intake.setPower(1);
-                    indexer.setPower(-1);
-                }
-            } else {
-                intake.setPower(0);
-                indexer.setPower(0);
-                leftShooter.setPower(0);
-                rightShooter.setPower(0);
+            }
+
+            if (gamepad1.a){
+                indexer.setPower(1);
             }
 
             if(gamepad1.dpad_down){
@@ -115,26 +113,9 @@ public class TeleopTeste extends LinearOpMode {
             }
 
             if(gamepad1.dpad_up){
-                angulator.setPosition(.4);
+                angulator.setPosition(.35);
             }
 
-            if (gamepad1.right_bumper) {
-                intake.setPower(1.0);
-
-                if (intakeSensor.hasArtifact() && !gamepad1.x) {
-                    indexer.setPower(0);
-                } else if (!intakeSensor.hasArtifact() && gamepad1.x){
-                    indexer.setPower(-1);
-                } else {
-                    indexer.setPower(-.7);
-                }
-            } else if (gamepad1.left_bumper) {
-                intake.setPower(-1);
-                indexer.setPower(1);
-            } else {
-                intake.setPower(0);
-                indexer.setPower(0);
-            }
 
             telemetry.addData("Heading", Math.toDegrees(orientacaoRad));
             telemetry.addData("Sensor 1", intakeSensor.getDistance1());

@@ -14,8 +14,8 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import org.firstinspires.ftc.teamcode.pedroPathing.subsystems.IntakeSensor;
 
-@TeleOp(name = "Teleop Aim Align Two Gamepad")
-public class TeleopAimAlign extends LinearOpMode {
+@TeleOp(name = "Teleop Aim Align One Gamepad")
+public class TeleopAimAlignTwo extends LinearOpMode {
 
     private Follower follower;
     private double headingOffset = 0;
@@ -55,7 +55,7 @@ public class TeleopAimAlign extends LinearOpMode {
     @Override
     public void runOpMode() {
         follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(new Pose(16,4,0));
+        follower.setStartingPose(new Pose(0,0,0));
         initSubsystems();
 
         telemetry.addLine("Robot Ready");
@@ -114,8 +114,6 @@ public class TeleopAimAlign extends LinearOpMode {
 
             telemetry.addData("Shooter Ready", shooterReady);
             telemetry.addData("Shooter Velocity", currentVelocity);
-            telemetry.addData("Left Shooter Velocity", leftShooter.getVelocity()    );
-            telemetry.addData("Right Shooter Velocity", rightShooter.getVelocity());
             telemetry.addData("X", robotPose.getX());
             telemetry.addData("Y", robotPose.getY());
             telemetry.addData("Heading (Deg)", Math.toDegrees(robotPose.getHeading()));
@@ -141,7 +139,7 @@ public class TeleopAimAlign extends LinearOpMode {
 
     private void subsystems() {
         intakeSensor.periodic();
-        if (gamepad2.y) {
+        if (gamepad1.y) {
             leftShooter.setVelocity(targetVelocity);
             rightShooter.setVelocity(targetVelocity);
             if (Math.abs(leftShooter.getVelocity() - targetVelocity) < velocityTolerance) {
@@ -153,10 +151,10 @@ public class TeleopAimAlign extends LinearOpMode {
         } else {
             leftShooter.setVelocity(0);
             rightShooter.setVelocity(0);
-            if (gamepad2.right_bumper) {
+            if (gamepad1.right_bumper) {
                 intake.setPower(1.0);
                 indexer.setPower(intakeSensor.hasArtifact() ? 0 : -0.7);
-            } else if (gamepad2.left_bumper) {
+            } else if (gamepad1.left_bumper) {
                 intake.setPower(-1.0);
                 indexer.setPower(1.0);
             } else {
