@@ -14,7 +14,7 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import org.firstinspires.ftc.teamcode.pedroPathing.subsystems.IntakeSensor;
 
-@TeleOp(name = "Teleop Aim Align One Gamepad")
+@TeleOp(name = "Teleop Aim Align Two Gamepad")
 public class TeleopAimAlignTwo extends LinearOpMode {
 
     private Follower follower;

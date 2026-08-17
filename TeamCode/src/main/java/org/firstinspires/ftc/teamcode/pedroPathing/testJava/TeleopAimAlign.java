@@ -14,14 +14,14 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import org.firstinspires.ftc.teamcode.pedroPathing.subsystems.IntakeSensor;
 
-@TeleOp(name = "Teleop Aim Align Two Gamepad")
+@TeleOp(name = "Teleop Aim Align One Gamepad")
 public class TeleopAimAlign extends LinearOpMode {
 
     private Follower follower;
     private double headingOffset = 0;
     private boolean lastA = false;
-    private final Pose leftGoal = new Pose(40,38);
-    private final Pose rightGoal = new Pose(40,-38);
+    private final Pose leftGoal = new Pose(40,40);
+    private final Pose rightGoal = new Pose(40,-40);
     private boolean aimAlign = false;
 
     private Pose currentTarget = leftGoal;
@@ -42,9 +42,9 @@ public class TeleopAimAlign extends LinearOpMode {
     private final double servoPosMin = 0.65;
     private final double servoPosMax = .45;
     private final double distStart = 100;
-    private final double distEnd = 10;
+    private final double distEnd = 20;
 
-    public final double targetVelocity = 2150;
+    public final double targetVelocity = 2000;
     public final double velocityTolerance = 100;
 
     // Valores PWM do RGB (ajuste se necessário conforme manual da goBILDA)
@@ -55,7 +55,8 @@ public class TeleopAimAlign extends LinearOpMode {
     @Override
     public void runOpMode() {
         follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(new Pose(16,4,0));
+        // Corrigido para iniciar na pose correta com 52 graus em radianos
+        follower.setStartingPose(new Pose(16, 4, Math.toRadians(52)));
         initSubsystems();
 
         telemetry.addLine("Robot Ready");
@@ -104,7 +105,8 @@ public class TeleopAimAlign extends LinearOpMode {
                 turn = -gamepad1.right_stick_x;
             }
 
-            follower.setTeleOpDrive(forward, strafe, turn, true);
+            // Field-centric desativado (false no último parâmetro) para testar o alinhamento puro
+            follower.setTeleOpDrive(forward, strafe, turn, false);
 
             subsystems();
             updateRGB();
@@ -112,10 +114,8 @@ public class TeleopAimAlign extends LinearOpMode {
             double currentVelocity = leftShooter.getVelocity();
             boolean shooterReady = Math.abs(currentVelocity - targetVelocity) < velocityTolerance;
 
+            telemetry.addData("Aim Align Active", aimAlign);
             telemetry.addData("Shooter Ready", shooterReady);
-            telemetry.addData("Shooter Velocity", currentVelocity);
-            telemetry.addData("Left Shooter Velocity", leftShooter.getVelocity()    );
-            telemetry.addData("Right Shooter Velocity", rightShooter.getVelocity());
             telemetry.addData("X", robotPose.getX());
             telemetry.addData("Y", robotPose.getY());
             telemetry.addData("Heading (Deg)", Math.toDegrees(robotPose.getHeading()));
@@ -141,7 +141,7 @@ public class TeleopAimAlign extends LinearOpMode {
 
     private void subsystems() {
         intakeSensor.periodic();
-        if (gamepad2.y) {
+        if (gamepad1.y) {
             leftShooter.setVelocity(targetVelocity);
             rightShooter.setVelocity(targetVelocity);
             if (Math.abs(leftShooter.getVelocity() - targetVelocity) < velocityTolerance) {
@@ -153,10 +153,10 @@ public class TeleopAimAlign extends LinearOpMode {
         } else {
             leftShooter.setVelocity(0);
             rightShooter.setVelocity(0);
-            if (gamepad2.right_bumper) {
+            if (gamepad1.right_bumper) {
                 intake.setPower(1.0);
                 indexer.setPower(intakeSensor.hasArtifact() ? 0 : -0.7);
-            } else if (gamepad2.left_bumper) {
+            } else if (gamepad1.left_bumper) {
                 intake.setPower(-1.0);
                 indexer.setPower(1.0);
             } else {
@@ -168,11 +168,10 @@ public class TeleopAimAlign extends LinearOpMode {
 
     private void updateRGB() {
         boolean hasArtifact = intakeSensor.hasArtifact();
-        // Detecta se algum sensor está lendo menos de 10cm
         boolean distDetected = (distRight.getDistance(DistanceUnit.CM) < 10);
 
         if (hasArtifact && distDetected) {
-            rgbIndicator.setPosition(COLOR_GREEN); // TreeArtifacts
+            rgbIndicator.setPosition(COLOR_GREEN);
         } else if (hasArtifact) {
             rgbIndicator.setPosition(COLOR_RED);
         } else {

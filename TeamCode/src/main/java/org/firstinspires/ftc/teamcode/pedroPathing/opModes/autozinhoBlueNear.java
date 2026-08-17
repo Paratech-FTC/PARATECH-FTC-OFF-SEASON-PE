@@ -373,6 +373,6 @@ public class autozinhoBlueNear extends OpMode {
 
         leftShooter.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         rightShooter.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        angulator.setPosition(0.78);
+        angulator.setPosition(0.73);
     }
 }

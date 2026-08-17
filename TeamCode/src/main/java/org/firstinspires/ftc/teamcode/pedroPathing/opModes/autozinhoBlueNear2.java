@@ -34,7 +34,7 @@ public class autozinhoBlueNear2 extends OpMode {
 
     // Definição das Poses (Posições do Campo)
     private final Pose startPose = new Pose(39, 30, Math.toRadians(50));
-    private final Pose shootPose = new Pose(19, 10, Math.toRadians(52));
+    private final Pose shootPose = new Pose(16, 4, Math.toRadians(52));
     private final Pose waitSecondIntake = new Pose(11, 36, Math.toRadians(90));
 
     // Intake Normal
@@ -293,6 +293,6 @@ public class autozinhoBlueNear2 extends OpMode {
 
         leftShooter.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         rightShooter.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        angulator.setPosition(0.74);
+        angulator.setPosition(0.70);
     }
 }
