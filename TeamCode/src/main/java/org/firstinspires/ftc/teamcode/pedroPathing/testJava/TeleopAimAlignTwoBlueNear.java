@@ -14,18 +14,18 @@ import org.firstinspires.ftc.robotcore.external.navigation.DistanceUnit;
 import org.firstinspires.ftc.teamcode.pedroPathing.Constants;
 import org.firstinspires.ftc.teamcode.pedroPathing.subsystems.IntakeSensor;
 
-@TeleOp(name = "Teleop Aim Align Two Gamepad")
-public class TeleopAimAlignTwo extends LinearOpMode {
+@TeleOp(name = "Blue Far Teleop Aim Align Two Gamepads")
+public class TeleopAimAlignTwoBlueNear extends LinearOpMode {
 
     private Follower follower;
     private double headingOffset = 0;
     private boolean lastA = false;
-    private final Pose leftGoal = new Pose(40,38);
-    private final Pose rightGoal = new Pose(40,-38);
+    private final Pose leftGoal = new Pose(40,40);
+    private final Pose rightGoal = new Pose(40,-40);
     private boolean aimAlign = false;
 
     private Pose currentTarget = leftGoal;
-    private boolean autoAngulator = false;
+    private boolean autoAngulator = true;
 
     private double kP = 1.4;
     private double headingDeadzone = Math.toRadians(1.5);
@@ -42,9 +42,9 @@ public class TeleopAimAlignTwo extends LinearOpMode {
     private final double servoPosMin = 0.65;
     private final double servoPosMax = .45;
     private final double distStart = 100;
-    private final double distEnd = 10;
+    private final double distEnd = 20;
 
-    public final double targetVelocity = 2150;
+    public final double targetVelocity = 2000;
     public final double velocityTolerance = 100;
 
     // Valores PWM do RGB (ajuste se necessário conforme manual da goBILDA)
@@ -55,7 +55,8 @@ public class TeleopAimAlignTwo extends LinearOpMode {
     @Override
     public void runOpMode() {
         follower = Constants.createFollower(hardwareMap);
-        follower.setStartingPose(new Pose(0,0,0));
+        // Corrigido para iniciar na pose correta com 52 graus em radianos
+        follower.setStartingPose(new Pose(16, 4, Math.toRadians(52)));
         initSubsystems();
 
         telemetry.addLine("Robot Ready");
@@ -74,8 +75,6 @@ public class TeleopAimAlignTwo extends LinearOpMode {
             // Inputs
             if (gamepad1.x) { currentTarget = leftGoal; aimAlign = true; }
             if (gamepad1.b) { currentTarget = rightGoal; aimAlign = true; }
-            if (gamepad1.dpad_right) autoAngulator = true;
-            if (gamepad1.dpad_up) { autoAngulator = false; angulator.setPosition(0.45); }
 
             // Lógica do Angulador
             if (autoAngulator) {
@@ -86,10 +85,11 @@ public class TeleopAimAlignTwo extends LinearOpMode {
             }
 
             // Drive control
-            if (gamepad1.a && !lastA) headingOffset = robotPose.getHeading();
+            if (gamepad1.a && !lastA) {
+                headingOffset = robotPose.getHeading();
+            }
             lastA = gamepad1.a;
 
-            double fieldHeading = robotPose.getHeading();
             if (Math.abs(gamepad1.right_stick_x) > 0.1) aimAlign = false;
 
             double forward = -gamepad1.left_stick_y;
@@ -98,13 +98,13 @@ public class TeleopAimAlignTwo extends LinearOpMode {
 
             if (aimAlign) {
                 double targetHeading = Math.atan2(currentTarget.getY() - robotPose.getY(), currentTarget.getX() - robotPose.getX());
-                double error = Math.atan2(Math.sin(targetHeading - fieldHeading), Math.cos(targetHeading - fieldHeading));
+                double error = Math.atan2(Math.sin(targetHeading - robotPose.getHeading()), Math.cos(targetHeading - robotPose.getHeading()));
                 turn = (Math.abs(error) < headingDeadzone) ? 0 : limit(error * kP);
             } else {
                 turn = -gamepad1.right_stick_x;
             }
 
-            follower.setTeleOpDrive(forward, strafe, turn, true);
+            follower.setTeleOpDrive(forward, strafe, turn, false, headingOffset);
 
             subsystems();
             updateRGB();
@@ -112,8 +112,8 @@ public class TeleopAimAlignTwo extends LinearOpMode {
             double currentVelocity = leftShooter.getVelocity();
             boolean shooterReady = Math.abs(currentVelocity - targetVelocity) < velocityTolerance;
 
+            telemetry.addData("Aim Align Active", aimAlign);
             telemetry.addData("Shooter Ready", shooterReady);
-            telemetry.addData("Shooter Velocity", currentVelocity);
             telemetry.addData("X", robotPose.getX());
             telemetry.addData("Y", robotPose.getY());
             telemetry.addData("Heading (Deg)", Math.toDegrees(robotPose.getHeading()));
@@ -139,7 +139,7 @@ public class TeleopAimAlignTwo extends LinearOpMode {
 
     private void subsystems() {
         intakeSensor.periodic();
-        if (gamepad1.y) {
+        if (gamepad2.y) {
             leftShooter.setVelocity(targetVelocity);
             rightShooter.setVelocity(targetVelocity);
             if (Math.abs(leftShooter.getVelocity() - targetVelocity) < velocityTolerance) {
@@ -151,10 +151,10 @@ public class TeleopAimAlignTwo extends LinearOpMode {
         } else {
             leftShooter.setVelocity(0);
             rightShooter.setVelocity(0);
-            if (gamepad1.right_bumper) {
+            if (gamepad2.right_bumper) {
                 intake.setPower(1.0);
                 indexer.setPower(intakeSensor.hasArtifact() ? 0 : -0.7);
-            } else if (gamepad1.left_bumper) {
+            } else if (gamepad2.left_bumper) {
                 intake.setPower(-1.0);
                 indexer.setPower(1.0);
             } else {
@@ -166,11 +166,10 @@ public class TeleopAimAlignTwo extends LinearOpMode {
 
     private void updateRGB() {
         boolean hasArtifact = intakeSensor.hasArtifact();
-        // Detecta se algum sensor está lendo menos de 10cm
         boolean distDetected = (distRight.getDistance(DistanceUnit.CM) < 10);
 
         if (hasArtifact && distDetected) {
-            rgbIndicator.setPosition(COLOR_GREEN); // TreeArtifacts
+            rgbIndicator.setPosition(COLOR_GREEN);
         } else if (hasArtifact) {
             rgbIndicator.setPosition(COLOR_RED);
         } else {
